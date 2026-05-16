@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notre Bibliothèque Familiale</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<style>
+  :root {
+    --cream: #fdf6ec;
+    --warm: #f5e6cc;
+    --brown: #5c3d2e;
+    --brown-light: #8b6148;
+    --accent: #e07b39;
+    --accent2: #6db8a0;
+    --accent3: #e06b8b;
+    --text: #2d1f14;
+    --text-soft: #7a5c47;
+    --card: #fff9f0;
+    --shadow: rgba(92,61,46,0.13);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+
+  header {
+    background: var(--brown); padding: 18px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px var(--shadow);
+  }
+  header h1 { font-family: 'Playfair Display', serif; color: var(--cream); font-size: 1.4rem; letter-spacing: 0.02em; }
+  header h1 span { color: var(--accent); font-style: italic; }
+
+  .profiles-bar {
+    display: flex; gap: 10px; padding: 16px 20px;
+    background: var(--warm); border-bottom: 2px solid #e8d5b8;
+    overflow-x: auto; flex-wrap: wrap; align-items: center;
+  }
+  .profile-btn {
+    display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+    border-radius: 50px; border: 2px solid transparent; background: var(--card);
+    cursor: pointer; font-family: 'Nunito', sans-serif; font-weight: 700;
+    font-size: 0.9rem; color: var(--brown); transition: all 0.2s; white-space: nowrap;
+  }
+  .profile-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px var(--shadow); }
+  .profile-btn.active { color: white; border-color: transparent; }
+  .profile-btn .avatar { font-size: 1.3rem; }
+  #profile-cindy.active   { background: var(--accent); }
+  #profile-adriano.active { background: var(--accent2); }
+  #profile-ciara.active   { background: var(--accent3); }
+
+  .profile-stats {
+    margin-left: auto; display: flex; align-items: center; gap: 10px;
+    font-size: 0.82rem; color: var(--text-soft); font-weight: 600; flex-wrap: wrap;
+  }
+  .stat-badge { background: var(--card); border-radius: 20px; padding: 4px 12px; border: 1px solid #e0ccb0; white-space: nowrap; }
+  .stat-badge span { color: var(--accent); font-weight: 800; }
+
+  main { max-width: 920px; margin: 0 auto; padding: 24px 16px; }
+
+  .add-section {
+    background: var(--card); border-radius: 20px; padding: 22px 24px;
+    margin-bottom: 28px; box-shadow: 0 4px 18px var(--shadow); border: 1.5px solid #e8d5b8;
+  }
+  .add-section h2 { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: var(--brown); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+  .isbn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .isbn-row input {
+    flex: 1; min-width: 180px; padding: 11px 16px; border-radius: 12px;
+    border: 2px solid #e0ccb0; background: var(--cream);
+    font-family: 'Nunito', sans-serif; font-size: 0.95rem; color: var(--text);
+    transition: border 0.2s; outline: none;
+  }
+  .isbn-row input:focus { border-color: var(--accent); }
+
+  .btn {
+    padding: 11px 22px; border-radius: 12px; border: none;
+    font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 0.92rem;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #c96a28; transform: translateY(-1px); }
+  .btn-scan { background: var(--brown); color: var(--cream); }
+  .btn-scan:hover { background: #3d2718; transform: translateY(-1px); }
+  .btn-sm { padding: 6px 14px; font-size: 0.82rem; border-radius: 8px; }
+  .btn-delete { background: #f0e0e0; color: #c05050; }
+  .btn-delete:hover { background: #e0c0c0; }
+
+  /* SCANNER */
+  #scanner-container {
+    display: none; margin-top: 14px; border-radius: 14px; overflow: hidden;
+    border: 2px solid var(--brown); background: #111; position: relative;
+  }
+  #interactive { width: 100%; }
+  #interactive video { width: 100%; display: block; max-height: 260px; object-fit: cover; }
+  #interactive canvas { display: none; }
+  .scanner-overlay {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; pointer-events: none;
+  }
+  .scanner-frame {
+    width: 75%; height: 100px; border: 2px solid rgba(255,255,255,0.6);
+    border-radius: 8px; position: relative;
+  }
+  .scanner-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: var(--accent); box-shadow: 0 0 8px var(--accent);
+    animation: scan 2s ease-in-out infinite;
+  }
+  @keyframes scan {
+    0%, 100% { top: 10%; opacity: 0.5; }
+    50% { top: 85%; opacity: 1; }
+  }
+  .scanner-close {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(0,0,0,0.6); color: white; border: none;
+    border-radius: 50%; width: 32px; height: 32px; font-size: 1rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10;
+  }
+  .scanner-hint {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.6); color: white; font-size: 0.78rem;
+    padding: 4px 12px; border-radius: 20px; white-space: nowrap; z-index: 10;
+  }
+
+  #isbn-result {
+    margin-top: 14px; border-radius: 14px; overflow: hidden;
+    border: 1.5px solid #e0ccb0; background: var(--cream); display: none;
+  }
+  .book-preview {
+    display: flex; gap: 16px; padding: 14px 16px; align-items: flex-start;
+    border-bottom: 1px solid #e8d5b8;
+  }
+  .book-preview:last-child { border-bottom: none; }
+  .book-preview img { width: 60px; min-width: 60px; height: 84px; border-radius: 6px; box-shadow: 2px 3px 10px var(--shadow); object-fit: cover; }
+  .book-preview .info { flex: 1; }
+  .book-preview .title { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: var(--brown); }
+  .book-preview .author { font-size: 0.85rem; color: var(--text-soft); margin: 2px 0 8px; }
+  .preview-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+
+  .status-select {
+    padding: 6px 10px; border-radius: 8px; border: 2px solid #e0ccb0;
+    background: var(--cream); font-family: 'Nunito', sans-serif;
+    font-size: 0.82rem; color: var(--brown); font-weight: 700; cursor: pointer; outline: none;
+  }
+
+  .filters { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 6px 16px; border-radius: 20px; border: 2px solid #e0ccb0;
+    background: var(--card); font-family: 'Nunito', sans-serif;
+    font-weight: 700; font-size: 0.83rem; color: var(--brown-light); cursor: pointer; transition: all 0.2s;
+  }
+  .filter-btn.active, .filter-btn:hover { background: var(--brown); color: var(--cream); border-color: var(--brown); }
+
+  .books-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 18px; }
+  .book-card {
+    background: var(--card); border-radius: 16px; overflow: hidden;
+    box-shadow: 0 3px 14px var(--shadow); border: 1.5px solid #e8d5b8;
+    transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column;
+    animation: fadeIn 0.3s ease;
+  }
+  .book-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px var(--shadow); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  .book-cover-placeholder {
+    width: 100%; aspect-ratio: 2/3; min-height: 120px;
+    background: linear-gradient(135deg, var(--warm) 0%, #f0dfc0 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.8rem; position: relative;
+  }
+  .book-cover-placeholder img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  .book-info { padding: 10px 12px 12px; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .book-title { font-family: 'Playfair Display', serif; font-size: 0.88rem; font-weight: 700; color: var(--brown); line-height: 1.3; }
+  .book-author { font-size: 0.75rem; color: var(--text-soft); }
+
+  .book-status {
+    margin-top: 4px; display: inline-block; padding: 3px 10px;
+    border-radius: 20px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.03em;
+  }
+  .status-lu      { background: #d4f0e8; color: #2d7a62; }
+  .status-en-cours { background: #fff0d4; color: #c07820; }
+  .status-a-lire  { background: #e8e4f8; color: #5540a0; }
+
+  /* APPRECIATION */
+  .appreciation-row { display: flex; gap: 5px; margin-top: 7px; align-items: center; }
+  .appre-btn {
+    border: 2px solid transparent; background: #f5ede0; cursor: pointer;
+    font-size: 1.1rem; border-radius: 8px; padding: 4px 8px;
+    transition: all 0.15s; opacity: 0.45; line-height: 1;
+  }
+  .appre-btn:hover { transform: scale(1.18); opacity: 0.8; }
+  .appre-btn.active-like    { opacity: 1; background: #d4f0e8; border-color: #6db88a; }
+  .appre-btn.active-dislike { opacity: 1; background: #f8e0e0; border-color: #e08080; }
+  .appre-label { font-size: 0.7rem; color: var(--text-soft); font-weight: 800; margin-left: 2px; }
+
+  .book-actions { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--text-soft); grid-column: 1 / -1; }
+  .empty-state .icon { font-size: 3.5rem; margin-bottom: 12px; }
+  .empty-state p { font-size: 1rem; font-weight: 600; }
+  .empty-state small { font-size: 0.85rem; opacity: 0.7; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--brown); color: var(--cream);
+    padding: 12px 24px; border-radius: 30px; font-weight: 700; font-size: 0.9rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2); opacity: 0; transition: all 0.3s;
+    z-index: 999; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .loading { text-align: center; padding: 14px; color: var(--text-soft); font-style: italic; }
+  .spinner {
+    display: inline-block; width: 18px; height: 18px;
+    border: 3px solid #e0ccb0; border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .section-title {
+    font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--brown);
+    margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 2px;
+    background: linear-gradient(to right, #e0ccb0, transparent); border-radius: 2px;
+  }
+
+  @media (max-width: 520px) {
+    .profile-stats { display: none; }
+    .books-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📚 Notre <span>Bibliothèque</span></h1>
+</header>
+
+<div class="profiles-bar">
+  <button class="profile-btn active" id="profile-cindy" onclick="switchProfile('cindy')">
+    <span class="avatar">👩</span> Cindy
+  </button>
+  <button class="profile-btn" id="profile-adriano" onclick="switchProfile('adriano')">
+    <span class="avatar">🧒</span> Adriano
+  </button>
+  <button class="profile-btn" id="profile-ciara" onclick="switchProfile('ciara')">
+    <span class="avatar">👶</span> Ciara
+  </button>
+  <div class="profile-stats">
+    <div class="stat-badge">✅ Lu : <span id="stat-lu">0</span></div>
+    <div class="stat-badge">📖 En cours : <span id="stat-encours">0</span></div>
+    <div class="stat-badge">🔖 À lire : <span id="stat-alire">0</span></div>
+    <div class="stat-badge">❤️ Aimé : <span id="stat-aime">0</span></div>
+  </div>
+</div>
+
+<main>
+  <div class="add-section">
+    <h2>➕ Ajouter un livre</h2>
+    <div class="isbn-row">
+      <input type="text" id="isbn-input" placeholder="ISBN ou titre du livre..."
+        maxlength="80" onkeydown="if(event.key==='Enter') searchBook()">
+      <button class="btn btn-primary" onclick="searchBook()">🔍 Rechercher</button>
+      <button class="btn btn-scan" id="scan-btn" onclick="toggleScanner()">📷 Scanner</button>
+    </div>
+    <div id="scanner-container">
+      <div id="interactive"></div>
+      <div class="scanner-overlay">
+        <div class="scanner-frame"><div class="scanner-line"></div></div>
+      </div>
+      <button class="scanner-close" onclick="stopScanner()">✕</button>
+      <div class="scanner-hint">Pointez la caméra vers le code-barres</div>
+    </div>
+    <div id="isbn-result"></div>
+  </div>
+
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('tous',this)">Tous</button>
+    <button class="filter-btn" onclick="setFilter('lu',this)">✅ Lus</button>
+    <button class="filter-btn" onclick="setFilter('en-cours',this)">📖 En cours</button>
+    <button class="filter-btn" onclick="setFilter('a-lire',this)">🔖 À lire</button>
+    <button class="filter-btn" onclick="setFilter('aime',this)">❤️ Aimés</button>
+    <button class="filter-btn" onclick="setFilter('pas-aime',this)">👎 Pas aimés</button>
+  </div>
+
+  <div class="section-title" id="section-label">Les livres de Cindy</div>
+  <div class="books-grid" id="books-grid"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── PROFILES ──────────────────────────────────────────────
+const PROFILES = {
+  cindy:   { label: 'Les livres de Cindy',   emoji: '👩' },
+  adriano: { label: "Les livres d'Adriano",  emoji: '🧒' },
+  ciara:   { label: 'Les livres de Ciara',   emoji: '👶' }
+};
+
+let currentProfile = 'cindy';
+let currentFilter  = 'tous';
+let scannerRunning = false;
+let lastDetected   = null;
+
+// Migrate old data (moi/kid1/kid2) → new keys
+let raw = localStorage.getItem('famille-livres');
+let library = raw ? JSON.parse(raw) : {};
+if (library.moi   && !library.cindy)   { library.cindy   = library.moi;   delete library.moi; }
+if (library.kid1  && !library.adriano) { library.adriano = library.kid1;  delete library.kid1; }
+if (library.kid2  && !library.ciara)   { library.ciara   = library.kid2;  delete library.kid2; }
+['cindy','adriano','ciara'].forEach(k => { if (!library[k]) library[k] = []; });
+
+function save() { localStorage.setItem('famille-livres', JSON.stringify(library)); }
+
+// ── PROFILE SWITCH ────────────────────────────────────────
+function switchProfile(p) {
+  currentProfile = p;
+  document.querySelectorAll('.profile-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('profile-' + p).classList.add('active');
+  document.getElementById('section-label').textContent = PROFILES[p].label;
+  renderBooks(); updateStats();
+  document.getElementById('isbn-result').style.display = 'none';
+  document.getElementById('isbn-input').value = '';
+  if (scannerRunning) stopScanner();
+}
+
+// ── STATS ─────────────────────────────────────────────────
+function updateStats() {
+  const books = library[currentProfile];
+  document.getElementById('stat-lu').textContent      = books.filter(b => b.status === 'lu').length;
+  document.getElementById('stat-encours').textContent = books.filter(b => b.status === 'en-cours').length;
+  document.getElementById('stat-alire').textContent   = books.filter(b => b.status === 'a-lire').length;
+  document.getElementById('stat-aime').textContent    = books.filter(b => b.appreciation === 'aime').length;
+}
+
+// ── FILTER ────────────────────────────────────────────────
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderBooks();
+}
+
+// ── APPRECIATION ──────────────────────────────────────────
+function setAppreciation(idx, value) {
+  const book = library[currentProfile][idx];
+  book.appreciation = (book.appreciation === value) ? null : value;
+  save(); renderBooks(); updateStats();
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderBooks() {
+  const grid = document.getElementById('books-grid');
+  let source = library[currentProfile];
+
+  let books = source.filter(b => {
+    if (currentFilter === 'tous')     return true;
+    if (currentFilter === 'aime')     return b.appreciation === 'aime';
+    if (currentFilter === 'pas-aime') return b.appreciation === 'pas-aime';
+    return b.status === currentFilter;
+  });
+
+  if (!books.length) {
+    grid.innerHTML = `<div class="empty-state">
+      <div class="icon">📭</div>
+      <p>Aucun livre ici pour l'instant</p>
+      <small>Ajoutez un ISBN, un titre ou scannez un livre !</small>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = books.map(b => {
+    const realIdx = source.indexOf(b);
+    const statusLabel = { lu:'✅ Lu', 'en-cours':'📖 En cours', 'a-lire':'🔖 À lire' }[b.status] || '';
+    const likeClass    = b.appreciation === 'aime'     ? 'active-like'    : '';
+    const dislikeClass = b.appreciation === 'pas-aime' ? 'active-dislike' : '';
+    const appreLabel   = b.appreciation === 'aime' ? '<span class="appre-label">Aimé !</span>'
+                       : b.appreciation === 'pas-aime' ? '<span class="appre-label">Pas aimé</span>' : '';
+    return `<div class="book-card">
+      <div class="book-cover-placeholder">
+        ${b.cover ? `<img src="${esc(b.cover)}" alt="" onerror="this.style.display='none'">` : '<span>📚</span>'}
+      </div>
+      <div class="book-info">
+        <div class="book-title">${esc(b.title)}</div>
+        <div class="book-author">${esc(b.author)}</div>
+        <span class="book-status status-${b.status}">${statusLabel}</span>
+        <div class="appreciation-row">
+          <button class="appre-btn ${likeClass}"    onclick="setAppreciation(${realIdx},'aime')"     title="J'ai aimé">❤️</button>
+          <button class="appre-btn ${dislikeClass}" onclick="setAppreciation(${realIdx},'pas-aime')" title="Pas aimé">👎</button>
+          ${appreLabel}
+        </div>
+        <div class="book-actions">
+          <select class="status-select" onchange="changeStatus(${realIdx},this.value)">
+            <option value="a-lire"   ${b.status==='a-lire'   ?'selected':''}>🔖 À lire</option>
+            <option value="en-cours" ${b.status==='en-cours' ?'selected':''}>📖 En cours</option>
+            <option value="lu"       ${b.status==='lu'       ?'selected':''}>✅ Lu</option>
+          </select>
+          <button class="btn btn-delete btn-sm" onclick="deleteBook(${realIdx})">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function changeStatus(idx, status) {
+  library[currentProfile][idx].status = status;
+  save(); renderBooks(); updateStats();
+  showToast('Statut mis à jour !');
+}
+function deleteBook(idx) {
+  library[currentProfile].splice(idx,1);
+  save(); renderBooks(); updateStats();
+  showToast('Livre supprimé');
+}
+
+// ── SCANNER ───────────────────────────────────────────────
+function toggleScanner() {
+  scannerRunning ? stopScanner() : startScanner();
+}
+
+function startScanner() {
+  const container = document.getElementById('scanner-container');
+  container.style.display = 'block';
+  document.getElementById('scan-btn').textContent = '⏹ Arrêter';
+  lastDetected = null;
+
+  Quagga.init({
+    inputStream: {
+      name: 'Live', type: 'LiveStream',
+      target: document.querySelector('#interactive'),
+      constraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    },
+    decoder: { readers: ['ean_reader','ean_8_reader','code_128_reader'] },
+    locate: true
+  }, err => {
+    if (err) { showToast('❌ Caméra non accessible'); stopScanner(); return; }
+    Quagga.start();
+    scannerRunning = true;
+  });
+
+  Quagga.onDetected(result => {
+    const code = result.codeResult.code;
+    if (!code || code === lastDetected) return;
+    // Accept ISBN-13 (978/979) or ISBN-10
+    const isIsbn = (code.length === 13 && (code.startsWith('978') || code.startsWith('979')))
+                || (code.length === 10 && /^[\dX]+$/.test(code));
+    if (!isIsbn) return;
+    lastDetected = code;
+    // Brief flash feedback
+    document.getElementById('scanner-container').style.borderColor = 'var(--accent2)';
+    setTimeout(() => { document.getElementById('scanner-container').style.borderColor = 'var(--brown)'; }, 400);
+    document.getElementById('isbn-input').value = code;
+    stopScanner();
+    showToast('📷 Code détecté : ' + code);
+    setTimeout(searchBook, 350);
+  });
+}
+
+function stopScanner() {
+  if (scannerRunning) { Quagga.stop(); scannerRunning = false; }
+  document.getElementById('scanner-container').style.display = 'none';
+  document.getElementById('scan-btn').textContent = '📷 Scanner';
+}
+
+// ── SEARCH ────────────────────────────────────────────────
+async function searchBook() {
+  const query = document.getElementById('isbn-input').value.trim();
+  if (!query) return;
+  const resultDiv = document.getElementById('isbn-result');
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = `<div class="loading"><span class="spinner"></span>Recherche en cours…</div>`;
+
+  try {
+    const isIsbn = /^[\d\-X]{10,17}$/.test(query.replace(/\s/g,''));
+    let url = isIsbn
+      ? `https://openlibrary.org/api/books?bibkeys=ISBN:${query.replace(/[\s\-]/g,'')}&format=json&jscmd=data`
+      : `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`;
+
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (isIsbn) {
+      const isbn = query.replace(/[\s\-]/g,'');
+      const key  = `ISBN:${isbn}`;
+      if (!data[key]) { resultDiv.innerHTML = `<div class="loading">❌ Livre non trouvé. Essayez avec le titre.</div>`; return; }
+      const b = data[key];
+      showPreviews([{
+        title: b.title,
+        author: b.authors ? b.authors.map(a=>a.name).join(', ') : 'Auteur inconnu',
+        cover: b.cover ? b.cover.medium : null,
+        isbn
+      }]);
+    } else {
+      const docs = data.docs || [];
+      if (!docs.length) { resultDiv.innerHTML = `<div class="loading">❌ Aucun résultat.</div>`; return; }
+      showPreviews(docs.slice(0,4).map(doc => {
+        const isbn = doc.isbn ? doc.isbn[0] : null;
+        return {
+          title: doc.title,
+          author: doc.author_name ? doc.author_name[0] : 'Auteur inconnu',
+          cover: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg` : null,
+          isbn
+        };
+      }));
+    }
+  } catch(e) {
+    resultDiv.innerHTML = `<div class="loading">❌ Erreur réseau. Vérifiez votre connexion.</div>`;
+  }
+}
+
+function showPreviews(books) {
+  document.getElementById('isbn-result').style.display = 'block';
+  document.getElementById('isbn-result').innerHTML = books.map((book, i) => {
+    const uid      = `prev${i}`;
+    const safeData = JSON.stringify(book).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="book-preview">
+      ${book.cover
+        ? `<img src="${esc(book.cover)}" alt="" onerror="this.style.display='none'">`
+        : `<div style="width:60px;min-width:60px;height:84px;background:var(--warm);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.8rem">📚</div>`}
+      <div class="info">
+        <div class="title">${esc(book.title)}</div>
+        <div class="author">${esc(book.author)}</div>
+        <div class="preview-actions">
+          <select class="status-select" id="${uid}">
+            <option value="a-lire">🔖 À lire</option>
+            <option value="en-cours">📖 En cours</option>
+            <option value="lu">✅ Lu</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="addFromPreview('${uid}',${i})">Ajouter</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  // Store books array temporarily
+  window._previewBooks = books;
+}
+
+function addFromPreview(uid, idx) {
+  const book   = window._previewBooks[idx];
+  const status = document.getElementById(uid).value;
+  if (library[currentProfile].some(b => b.title === book.title)) {
+    showToast('Ce livre est déjà dans la liste !'); return;
+  }
+  library[currentProfile].unshift({ ...book, status, appreciation: null, addedAt: Date.now() });
+  save(); renderBooks(); updateStats();
+  document.getElementById('isbn-result').style.display = 'none';
+  document.getElementById('isbn-input').value = '';
+  showToast('📚 Livre ajouté !');
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ── INIT ──────────────────────────────────────────────────
+renderBooks();
+updateStats();
+</script>
+</body>
+</html>
