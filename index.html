@@ -471,6 +471,22 @@ function stopScanner() {
 }
 
 // ── SEARCH ────────────────────────────────────────────────
+
+// Fetch best cover: Google Books first, then Open Library as fallback
+async function getBestCover(isbn, title, author) {
+  // 1. Try Google Books thumbnail (best quality, great for French books)
+  try {
+    const q = isbn ? `isbn:${isbn}` : `intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(author||'')}`;
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&fields=items(volumeInfo(imageLinks))`);
+    const d = await r.json();
+    const thumb = d.items?.[0]?.volumeInfo?.imageLinks?.thumbnail;
+    if (thumb) return thumb.replace('http://', 'https://').replace('&edge=curl','') + '&fife=w400';
+  } catch(e) {}
+  // 2. Fallback: Open Library cover by ISBN
+  if (isbn) return `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
+  return null;
+}
+
 async function searchBook() {
   const query = document.getElementById('isbn-input').value.trim();
   if (!query) return;
@@ -480,36 +496,48 @@ async function searchBook() {
 
   try {
     const isIsbn = /^[\d\-X]{10,17}$/.test(query.replace(/\s/g,''));
-    let url = isIsbn
-      ? `https://openlibrary.org/api/books?bibkeys=ISBN:${query.replace(/[\s\-]/g,'')}&format=json&jscmd=data`
-      : `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`;
-
-    const res  = await fetch(url);
-    const data = await res.json();
 
     if (isIsbn) {
       const isbn = query.replace(/[\s\-]/g,'');
-      const key  = `ISBN:${isbn}`;
-      if (!data[key]) { resultDiv.innerHTML = `<div class="loading">❌ Livre non trouvé. Essayez avec le titre.</div>`; return; }
-      const b = data[key];
+      // Google Books by ISBN
+      const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1`);
+      const d = await r.json();
+      if (!d.items?.length) {
+        resultDiv.innerHTML = `<div class="loading">❌ Livre non trouvé. Essayez avec le titre.</div>`; return;
+      }
+      const info = d.items[0].volumeInfo;
+      const cover = await getBestCover(isbn, info.title, info.authors?.[0]);
       showPreviews([{
-        title: b.title,
-        author: b.authors ? b.authors.map(a=>a.name).join(', ') : 'Auteur inconnu',
-        cover: b.cover ? b.cover.medium : null,
-        isbn
+        title: info.title,
+        author: info.authors ? info.authors.join(', ') : 'Auteur inconnu',
+        cover, isbn
       }]);
     } else {
-      const docs = data.docs || [];
-      if (!docs.length) { resultDiv.innerHTML = `<div class="loading">❌ Aucun résultat.</div>`; return; }
-      showPreviews(docs.slice(0,4).map(doc => {
-        const isbn = doc.isbn ? doc.isbn[0] : null;
+      // Google Books by title (great for French books)
+      const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=6&langRestrict=fr`);
+      const d = await r.json();
+      let items = d.items || [];
+      // If no French results, try without language restriction
+      if (!items.length) {
+        const r2 = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`);
+        const d2 = await r2.json();
+        items = d2.items || [];
+      }
+      if (!items.length) { resultDiv.innerHTML = `<div class="loading">❌ Aucun résultat.</div>`; return; }
+
+      const results = await Promise.all(items.slice(0,4).map(async item => {
+        const info = item.volumeInfo;
+        const isbn = info.industryIdentifiers?.find(x => x.type === 'ISBN_13')?.identifier
+                  || info.industryIdentifiers?.find(x => x.type === 'ISBN_10')?.identifier
+                  || null;
+        const cover = await getBestCover(isbn, info.title, info.authors?.[0]);
         return {
-          title: doc.title,
-          author: doc.author_name ? doc.author_name[0] : 'Auteur inconnu',
-          cover: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg` : null,
-          isbn
+          title: info.title,
+          author: info.authors ? info.authors[0] : 'Auteur inconnu',
+          cover, isbn
         };
       }));
+      showPreviews(results);
     }
   } catch(e) {
     resultDiv.innerHTML = `<div class="loading">❌ Erreur réseau. Vérifiez votre connexion.</div>`;
